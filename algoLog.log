@@ -162,3 +162,105 @@
 2024-03-18 15:40:47,469:ERROR:Error 1102, reqId -1: Connectivity between IB and Trader Workstation has been restored - data maintained. All data farms are connected: usfarm.nj; cashfarm; usfarm; euhmds; fundfarm; ushmds; secdefil.
 2024-03-18 15:40:51,473:INFO:BUY 1141.0 SHARES AT 765.6394975758107 PER SHARE
 2024-03-18 15:40:51,473:INFO:Disconnected from IBKR
+2025-06-07 22:14:16,998:ERROR:
+1 Failed download:
+2025-06-07 22:14:16,998:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:17,557:ERROR:
+1 Failed download:
+2025-06-07 22:14:17,557:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:18,150:ERROR:
+1 Failed download:
+2025-06-07 22:14:18,150:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:18,728:ERROR:
+1 Failed download:
+2025-06-07 22:14:18,728:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:19,490:ERROR:
+1 Failed download:
+2025-06-07 22:14:19,490:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:20,022:ERROR:
+1 Failed download:
+2025-06-07 22:14:20,022:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:20,753:ERROR:
+1 Failed download:
+2025-06-07 22:14:20,753:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:21,445:ERROR:
+1 Failed download:
+2025-06-07 22:14:21,445:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:21,990:ERROR:
+1 Failed download:
+2025-06-07 22:14:21,990:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:22,585:ERROR:
+1 Failed download:
+2025-06-07 22:14:22,585:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:23,253:ERROR:
+1 Failed download:
+2025-06-07 22:14:23,253:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:23,876:ERROR:
+1 Failed download:
+2025-06-07 22:14:23,876:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:24,503:ERROR:
+1 Failed download:
+2025-06-07 22:14:24,503:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:25,286:ERROR:
+1 Failed download:
+2025-06-07 22:14:25,286:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:25,906:ERROR:
+1 Failed download:
+2025-06-07 22:14:25,906:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:26,467:ERROR:
+1 Failed download:
+2025-06-07 22:14:26,467:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:27,002:ERROR:
+1 Failed download:
+2025-06-07 22:14:27,002:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:27,843:ERROR:
+1 Failed download:
+2025-06-07 22:14:27,843:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:28,514:ERROR:
+1 Failed download:
+2025-06-07 22:14:28,514:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:29,062:ERROR:
+1 Failed download:
+2025-06-07 22:14:29,062:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:29,775:ERROR:
+1 Failed download:
+2025-06-07 22:14:29,775:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:30,496:ERROR:
+1 Failed download:
+2025-06-07 22:14:30,496:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:31,027:ERROR:
+1 Failed download:
+2025-06-07 22:14:31,027:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:31,526:ERROR:
+1 Failed download:
+2025-06-07 22:14:31,526:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:32,102:ERROR:
+1 Failed download:
+2025-06-07 22:14:32,102:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:32,743:ERROR:
+1 Failed download:
+2025-06-07 22:14:32,743:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:33,487:ERROR:
+1 Failed download:
+2025-06-07 22:14:33,487:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:34,046:ERROR:
+1 Failed download:
+2025-06-07 22:14:34,046:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:34,593:ERROR:
+1 Failed download:
+2025-06-07 22:14:34,593:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:35,354:ERROR:
+1 Failed download:
+2025-06-07 22:14:35,354:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:35,997:ERROR:
+1 Failed download:
+2025-06-07 22:14:35,997:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:36,510:ERROR:
+1 Failed download:
+2025-06-07 22:14:36,510:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:37,130:ERROR:
+1 Failed download:
+2025-06-07 22:14:37,130:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+2025-06-07 22:14:37,650:ERROR:
+1 Failed download:
+2025-06-07 22:14:37,650:ERROR:['A']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
