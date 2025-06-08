@@ -29,7 +29,7 @@ class AutoTrade:
         """
         self.main = main
 
-        # Default configuration with enhanced settings
+        # Default configuration with enhanced settings - FIXED THRESHOLDS
         default_config = {
             "path": (
                 getattr(main, "atPathBox", {}).get()
@@ -40,12 +40,13 @@ class AutoTrade:
             "use_enhanced_algo": True,
             "use_zscore": True,
             "use_volume_signals": True,
-            "long_threshold": 1.002,  # 0.2% minimum for long
-            "short_threshold": 0.998,  # 0.2% minimum for short
+            "long_threshold": 0.5,  # Fixed: Positive z-score threshold
+            "short_threshold": -0.5,  # Fixed: Negative z-score threshold
             "exit_threshold": 2,  # Number of contrary signals to exit
             "max_position_time": 240,  # Maximum minutes to hold position
             "risk_management": True,
             "paper_trade": True,
+            "zscore_to_ratio_factor": 0.02,  # 2% per standard deviation for conversion
         }
 
         if config:
@@ -151,12 +152,18 @@ class AutoTrade:
             print(f"NO SIGNALS: {ticker}")
             return
 
-        long_signals = sum(
-            1 for signal in signals if signal > self.settings["long_threshold"]
-        )
-        short_signals = sum(
-            1 for signal in signals if signal < self.settings["short_threshold"]
-        )
+        # Fixed: Use appropriate thresholds based on whether we're using z-scores
+        if self.settings["use_zscore"]:
+            long_signals = sum(
+                1 for signal in signals if signal > self.settings["long_threshold"]
+            )
+            short_signals = sum(
+                1 for signal in signals if signal < self.settings["short_threshold"]
+            )
+        else:
+            # Legacy ratio-based thresholds
+            long_signals = sum(1 for signal in signals if signal > 1.002)
+            short_signals = sum(1 for signal in signals if signal < 0.998)
 
         # Enhanced signal confirmation - require multiple timeframes to agree
         if long_signals >= 3:  # Require 3 timeframes to agree
@@ -194,11 +201,16 @@ class AutoTrade:
         if not signals:
             return
 
-        # Count contrary signals
+        # Count contrary signals - Fixed to use appropriate neutral point
+        if self.settings["use_zscore"]:
+            neutral_point = 0.0  # Z-scores are centered at 0
+        else:
+            neutral_point = 1.0  # Ratios are centered at 1
+
         if position_type == "long":
-            contrary_signals = sum(1 for signal in signals if signal < 1.000)
+            contrary_signals = sum(1 for signal in signals if signal < neutral_point)
         else:  # short position
-            contrary_signals = sum(1 for signal in signals if signal > 1.000)
+            contrary_signals = sum(1 for signal in signals if signal > neutral_point)
 
         print(
             f"MONITORING {position_type.upper()} {ticker}: {contrary_signals} contrary signals"
@@ -230,15 +242,28 @@ class AutoTrade:
                     if hasattr(result, "iloc") and len(result) > 0:
                         # Take the mean of the last prediction point across all matches
                         final_signal = (
-                            result.iloc[-1].mean() if result.shape[1] > 0 else 1.0
+                            result.iloc[-1].mean() if result.shape[1] > 0 else 0.0
                         )
                     else:
                         final_signal = (
-                            result[-1] if hasattr(result, "__getitem__") else 1.0
+                            result[-1] if hasattr(result, "__getitem__") else 0.0
                         )
 
+                    # Fixed: Convert z-score back to appropriate format if needed
+                    if not self.settings["use_zscore"]:
+                        # If not using z-scores, ensure we have ratio format
+                        # This handles the case where the algo might return z-scores
+                        # but this module expects ratios
+                        if abs(final_signal) < 10:  # Likely a z-score
+                            final_signal = 1.0 + (
+                                final_signal * self.settings["zscore_to_ratio_factor"]
+                            )
+
                     signals.append(final_signal)
-                    print(f"  {duration}: {final_signal:.4f}")
+
+                    # Log the signal value and type
+                    signal_type = "z-score" if self.settings["use_zscore"] else "ratio"
+                    print(f"  {duration}: {final_signal:.4f} ({signal_type})")
                 else:
                     print(f"  {duration}: No result")
 
@@ -337,13 +362,19 @@ class AutoTrade:
         """
         try:
             avg_signal = sum(signals) / len(signals)
-            signal_strength = abs(avg_signal - 1.0)
 
+            # Calculate signal strength based on whether we're using z-scores
+            if self.settings["use_zscore"]:
+                signal_strength = abs(avg_signal)  # Z-scores: distance from 0
+            else:
+                signal_strength = abs(avg_signal - 1.0)  # Ratios: distance from 1
+
+            signal_type = "z-score" if self.settings["use_zscore"] else "ratio"
             logging.info(
-                f"{position_type.upper()} BUY: {ticker} (avg signal: {avg_signal:.4f}, strength: {signal_strength:.4f})"
+                f"{position_type.upper()} BUY: {ticker} (avg {signal_type}: {avg_signal:.4f}, strength: {signal_strength:.4f})"
             )
             print(
-                f"{position_type.upper()} BUY: {ticker} (avg signal: {avg_signal:.4f})"
+                f"{position_type.upper()} BUY: {ticker} (avg {signal_type}: {avg_signal:.4f})"
             )
 
             # Initialize trader with enhanced configuration
@@ -485,6 +516,8 @@ def create_autotrader(main, **kwargs):
         "use_volume_signals": True,
         "risk_management": True,
         "paper_trade": True,
+        "long_threshold": 0.5,  # Z-score threshold
+        "short_threshold": -0.5,  # Z-score threshold
     }
 
     # Merge with user configuration

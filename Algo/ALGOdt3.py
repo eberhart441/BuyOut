@@ -111,7 +111,12 @@ class Algo:
             else:
                 close_zscores = 4 * (close_prices - mean_close) / std_close
 
-            # Prepare final data structure
+            # Log z-score range for validation
+            logging.info(
+                f"Close z-scores range: [{np.min(close_zscores):.2f}, {np.max(close_zscores):.2f}]"
+            )
+
+            # Prepare final data structure WITHOUT datetime placeholder
             if volume_data is not None and self.use_volume:
                 # Calculate z-scores for volume
                 std_volume = np.std(volume_data)
@@ -122,22 +127,16 @@ class Algo:
                 else:
                     volume_zscores = (volume_data - mean_volume) / std_volume
 
-                # Create 3-column array: [datetime_placeholder, close_zscore, volume_zscore]
-                # First column will be filled with time data during processing
-                result = np.column_stack(
-                    [
-                        np.zeros_like(close_zscores),  # Placeholder for time
-                        close_zscores,
-                        volume_zscores,
-                    ]
+                # Create 2-column array: [close_zscore, volume_zscore]
+                result = np.column_stack([close_zscores, volume_zscores])
+                logging.info(
+                    f"Prepared z-score data with shape: {result.shape} (close + volume)"
                 )
             else:
-                # Create 2-column array: [datetime_placeholder, close_zscore]
-                result = np.column_stack(
-                    [
-                        np.zeros_like(close_zscores),  # Placeholder for time
-                        close_zscores,
-                    ]
+                # Create 1-column array: [close_zscore]
+                result = close_zscores.reshape(-1, 1)
+                logging.info(
+                    f"Prepared z-score data with shape: {result.shape} (close only)"
                 )
 
             return result
@@ -147,7 +146,7 @@ class Algo:
             # Fallback to simple normalization
             close_prices = self._extract_close_prices(tickerData)
             normalized = close_prices / close_prices[-1]
-            return np.column_stack([np.zeros_like(normalized), normalized])
+            return normalized.reshape(-1, 1)
 
     def startPool(self):
         """
@@ -209,7 +208,7 @@ class Algo:
                                 filePath,
                                 usecols=["close"],
                                 dtype={"close": "float"},
-                                skiprows=range(1, i),
+                                skiprows=i,  # Fixed: Skip first i rows
                                 nrows=self.tickerDataLen
                                 + self.settings["predictionLen"],
                             )
@@ -219,7 +218,7 @@ class Algo:
                                 filePath,
                                 usecols=["Close"],
                                 dtype={"Close": "float"},
-                                skiprows=range(1, i),
+                                skiprows=i,  # Fixed: Skip first i rows
                                 nrows=self.tickerDataLen
                                 + self.settings["predictionLen"],
                             )
@@ -265,6 +264,9 @@ class Algo:
         except Exception as e:
             logging.exception("An error occurred during startPool execution: " + str(e))
             return pd.DataFrame()
+        finally:
+            # Reset progress bar
+            self.settings["progressQueue"].put(0)
 
     def algo(self, processId, progressList, files):
         """
@@ -371,6 +373,7 @@ class Algo:
                                 4 * (tickerCacheSegmentClose - mean_close)
                             ) / std_close
 
+                        # Fixed distance calculation
                         if self.use_volume and "volume" in tickerCache.columns:
                             # Extract and process volume
                             tickerCacheSegmentVolume = tickerCache.iloc[
@@ -386,33 +389,27 @@ class Algo:
                                     tickerCacheSegmentVolume - mean_volume
                                 ) / std_volume
 
+                            # Create comparable array structure
                             segmentZScores = np.column_stack(
                                 [closeZScores, volumeZScores]
                             )
 
-                            # Compare with input data (skip first column which is time placeholder)
-                            if self.settings["tickerDataZScores"].shape[1] >= 3:
-                                distance = np.linalg.norm(
-                                    self.settings["tickerDataZScores"][:, [1, 2]]
-                                    - segmentZScores
-                                )
+                            # Compare with input data
+                            input_data = self.settings["tickerDataZScores"]
+
+                            # Ensure shapes match
+                            if input_data.shape[1] == segmentZScores.shape[1]:
+                                distance = np.linalg.norm(input_data - segmentZScores)
                             else:
+                                # Fallback to close-only comparison
                                 distance = np.linalg.norm(
-                                    self.settings["tickerDataZScores"][:, 1:]
-                                    - closeZScores.reshape(-1, 1)
+                                    input_data[:, 0] - closeZScores
                                 )
                         else:
-                            # Only close prices
-                            if self.settings["tickerDataZScores"].shape[1] >= 2:
-                                distance = np.linalg.norm(
-                                    self.settings["tickerDataZScores"][:, 1]
-                                    - closeZScores
-                                )
-                            else:
-                                distance = np.linalg.norm(
-                                    self.settings["tickerDataZScores"][:, 0]
-                                    - closeZScores
-                                )
+                            # Close-only comparison
+                            distance = np.linalg.norm(
+                                self.settings["tickerDataZScores"][:, 0] - closeZScores
+                            )
 
                         resultList.append((distance, filePath, i))
                 else:
@@ -431,7 +428,7 @@ class Algo:
                         segment_normalized = segment_prices / segment_prices[-1]
 
                         distance = np.linalg.norm(
-                            self.settings["tickerDataZScores"][:, -1]
+                            self.settings["tickerDataZScores"][:, 0]
                             - segment_normalized
                         )
 

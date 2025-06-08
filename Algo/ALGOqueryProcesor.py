@@ -87,6 +87,8 @@ class AQP:
             self.main.ALGOqueryQueue = self.main.ALGOqueryQueue.iloc[1:].reset_index(
                 drop=True
             )
+            # Reset progress bar on failure
+            self.main.progressQueue.put(0)
             return
 
         # Calculate prediction length (20% of data length)
@@ -170,6 +172,8 @@ class AQP:
                 logging.error(f"Error in queryLocalMachine for {ticker}: {e}")
                 # Return empty DataFrame on error
                 workerResultQueue.put(pd.DataFrame())
+                # Reset progress bar on error
+                self.main.progressQueue.put(0)
 
         # Initialize result storage
         averageResult = pd.DataFrame()
@@ -189,6 +193,8 @@ class AQP:
                 logging.warning(f"Empty result received for {ticker}")
         except queue.Empty:
             logging.error(f"Timeout waiting for results for {ticker}")
+            # Reset progress bar on timeout
+            self.main.progressQueue.put(0)
 
         # Update UI and data structures
         self._updateQueryResults(ticker, duration, ALGOquery, averageResult, tickerData)
@@ -262,6 +268,9 @@ class AQP:
 
         except Exception as e:
             logging.error(f"Error updating query results for {ticker}: {e}")
+        finally:
+            # Always reset progress bar after query completion
+            self.main.progressQueue.put(0)
 
 
 # Enhanced configuration options for the main application
