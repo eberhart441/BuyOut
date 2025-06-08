@@ -29,7 +29,7 @@ class AutoTrade:
         """
         self.main = main
 
-        # Default configuration
+        # Default configuration with enhanced settings
         default_config = {
             "path": (
                 getattr(main, "atPathBox", {}).get()
@@ -38,6 +38,7 @@ class AutoTrade:
             ),
             "progressQueue": getattr(main, "progressQueue", None),
             "use_enhanced_algo": True,
+            "use_zscore": True,
             "use_volume_signals": True,
             "long_threshold": 1.002,  # 0.2% minimum for long
             "short_threshold": 0.998,  # 0.2% minimum for short
@@ -52,6 +53,12 @@ class AutoTrade:
 
         self.settings = default_config
         self.active_positions = {}  # Track active positions and their start times
+
+        # Apply enhanced settings to main app
+        if not hasattr(main, "use_zscore"):
+            main.use_zscore = self.settings["use_zscore"]
+        if not hasattr(main, "use_volume"):
+            main.use_volume = self.settings["use_volume_signals"]
 
         # Start the main trading loop
         self.ALGOat()
@@ -85,6 +92,7 @@ class AutoTrade:
         try:
             instructionFile = pd.read_csv(self.settings["path"])
             logging.info(f"Loaded {len(instructionFile)} tickers for auto-trading")
+            print(f"Loaded {len(instructionFile)} tickers for auto-trading")
         except Exception as e:
             logging.error(f"Failed to load instruction file: {e}")
             print(
@@ -130,7 +138,7 @@ class AutoTrade:
 
     def _evaluate_new_position(self, ticker, dataSize):
         """
-        Evaluate whether to open a new position for a ticker.
+        Evaluate whether to open a new position for a ticker using enhanced signals.
 
         Args:
             ticker: Stock ticker symbol
@@ -150,7 +158,7 @@ class AutoTrade:
             1 for signal in signals if signal < self.settings["short_threshold"]
         )
 
-        # Enhanced signal confirmation
+        # Enhanced signal confirmation - require multiple timeframes to agree
         if long_signals >= 3:  # Require 3 timeframes to agree
             self._execute_trade(ticker, "long", signals)
         elif short_signals >= 3:
@@ -201,7 +209,7 @@ class AutoTrade:
 
     def _get_enhanced_signals(self, ticker, dataSize):
         """
-        Get prediction signals using enhanced algorithm.
+        Get prediction signals using enhanced z-score algorithm.
 
         Args:
             ticker: Stock ticker symbol
@@ -215,13 +223,20 @@ class AutoTrade:
 
         for duration in timeframes:
             try:
-                # Create enhanced query
+                # Create enhanced query with proper configuration
                 result = self._enhanced_ALGOquery(ticker, duration, dataSize)
                 if result is not None and len(result) > 0:
-                    # Get the final prediction value
-                    final_signal = (
-                        result.iloc[-1] if hasattr(result, "iloc") else result[-1]
-                    )
+                    # Get the final prediction value (average of all matches)
+                    if hasattr(result, "iloc") and len(result) > 0:
+                        # Take the mean of the last prediction point across all matches
+                        final_signal = (
+                            result.iloc[-1].mean() if result.shape[1] > 0 else 1.0
+                        )
+                    else:
+                        final_signal = (
+                            result[-1] if hasattr(result, "__getitem__") else 1.0
+                        )
+
                     signals.append(final_signal)
                     print(f"  {duration}: {final_signal:.4f}")
                 else:
@@ -235,7 +250,7 @@ class AutoTrade:
 
     def _enhanced_ALGOquery(self, ticker, duration, dataSize):
         """
-        Enhanced algorithm query with better error handling and configuration.
+        Enhanced algorithm query with z-score support and better error handling.
 
         Args:
             ticker: Stock ticker symbol
@@ -254,23 +269,35 @@ class AutoTrade:
                     "dataSize": [dataSize],
                     "resultSize": [100],
                     "ALGOqueryID": [self.main.ALGOqueryID],
-                    "use_enhanced": [self.settings.get("use_enhanced_algo", True)],
-                    "use_volume": [self.settings.get("use_volume_signals", True)],
                 }
             )
 
             self.main.ALGOqueryID += 1
-            self.main.ALGOqueryQueue = pd.concat([self.main.ALGOqueryQueue, ALGOquery])
+
+            # Add query to processing queue
+            self.main.ALGOqueryQueue = pd.concat(
+                [self.main.ALGOqueryQueue, ALGOquery], ignore_index=True
+            )
 
             # Wait for processing with timeout
             timeout_counter = 0
             max_timeout = 300  # 5 minutes maximum wait
 
-            while (
-                self.main.ALGOqueryQueue.shape[0] != 0 and timeout_counter < max_timeout
-            ):
-                time.sleep(0.5)
-                timeout_counter += 0.5
+            initial_history_length = len(self.main.ALGOqueryResultHistory)
+
+            while timeout_counter < max_timeout:
+                # Check if new result is available
+                if len(self.main.ALGOqueryResultHistory) > initial_history_length:
+                    break
+
+                # Check if queue is being processed
+                if self.main.ALGOqueryQueue.shape[0] == 0:
+                    # Queue processed but no result yet, wait a bit more
+                    time.sleep(1)
+                    timeout_counter += 1
+                else:
+                    time.sleep(0.5)
+                    timeout_counter += 0.5
 
                 # Check if we should stop
                 if not self.repeat:
@@ -281,13 +308,18 @@ class AutoTrade:
                 return None
 
             # Return the most recent result
-            if len(self.main.ALGOqueryResultHistory) > 0:
+            if len(self.main.ALGOqueryResultHistory) > initial_history_length:
                 result = self.main.ALGOqueryResultHistory[-1]
-                if hasattr(result, "mean"):
-                    return result.mean(axis=1)
-                else:
+                if not result.empty:
+                    logging.info(
+                        f"Retrieved {result.shape[1]} predictions for {ticker} {duration}"
+                    )
                     return result
+                else:
+                    logging.warning(f"Empty result for {ticker} {duration}")
+                    return None
             else:
+                logging.warning(f"No new result available for {ticker} {duration}")
                 return None
 
         except Exception as e:
@@ -296,7 +328,7 @@ class AutoTrade:
 
     def _execute_trade(self, ticker, position_type, signals):
         """
-        Execute a trade with enhanced error handling.
+        Execute a trade with enhanced error handling and logging.
 
         Args:
             ticker: Stock ticker symbol
@@ -305,14 +337,16 @@ class AutoTrade:
         """
         try:
             avg_signal = sum(signals) / len(signals)
+            signal_strength = abs(avg_signal - 1.0)
+
             logging.info(
-                f"{position_type.upper()} BUY: {ticker} (avg signal: {avg_signal:.4f})"
+                f"{position_type.upper()} BUY: {ticker} (avg signal: {avg_signal:.4f}, strength: {signal_strength:.4f})"
             )
             print(
                 f"{position_type.upper()} BUY: {ticker} (avg signal: {avg_signal:.4f})"
             )
 
-            # Initialize trader
+            # Initialize trader with enhanced configuration
             trader = stockTrader.stockTrader(
                 ticker, position_type, paper_trade=self.settings["paper_trade"]
             )
@@ -321,13 +355,14 @@ class AutoTrade:
             trader.connect()
             trade_result = trader.place_order()
 
-            # Track the position
+            # Track the position with detailed information
             self.active_positions[ticker] = {
                 "type": position_type,
                 "trader": trader,
                 "start_time": datetime.now(),
                 "signals": signals,
                 "avg_signal": avg_signal,
+                "signal_strength": signal_strength,
             }
 
             logging.info(f"Position opened successfully for {ticker}")
@@ -338,7 +373,7 @@ class AutoTrade:
 
     def _close_position(self, ticker, reason):
         """
-        Close an existing position.
+        Close an existing position with enhanced logging.
 
         Args:
             ticker: Stock ticker symbol
@@ -352,8 +387,13 @@ class AutoTrade:
             position_info = self.active_positions[ticker]
             trader = position_info["trader"]
             position_type = position_info["type"]
+            duration = (
+                datetime.now() - position_info["start_time"]
+            ).total_seconds() / 60
 
-            logging.info(f"{position_type.upper()} SELL: {ticker} ({reason})")
+            logging.info(
+                f"{position_type.upper()} SELL: {ticker} ({reason}, held {duration:.1f}min)"
+            )
             print(f"{position_type.upper()} SELL: {ticker} ({reason})")
 
             # Close the position
@@ -388,7 +428,7 @@ class AutoTrade:
 
     def get_status(self):
         """
-        Get current auto-trading status.
+        Get current auto-trading status with enhanced information.
 
         Returns:
             dict: Current status information
@@ -404,10 +444,16 @@ class AutoTrade:
                     ).total_seconds()
                     / 60,
                     "avg_signal": info["avg_signal"],
+                    "signal_strength": info.get("signal_strength", 0),
                 }
                 for ticker, info in self.active_positions.items()
             },
             "settings": self.settings,
+            "enhanced_features": {
+                "zscore_enabled": self.settings.get("use_zscore", True),
+                "volume_enabled": self.settings.get("use_volume_signals", True),
+                "enhanced_algo": self.settings.get("use_enhanced_algo", True),
+            },
         }
 
     def stop_trading(self):
@@ -420,10 +466,10 @@ class AutoTrade:
         self._cleanup_all_positions()
 
 
-# Enhanced factory function for backward compatibility
+# Enhanced factory function
 def create_autotrader(main, **kwargs):
     """
-    Factory function to create AutoTrade instance with configuration.
+    Factory function to create AutoTrade instance with enhanced configuration.
 
     Args:
         main: Main application instance
@@ -435,6 +481,7 @@ def create_autotrader(main, **kwargs):
     # Default enhanced configuration
     default_config = {
         "use_enhanced_algo": True,
+        "use_zscore": True,
         "use_volume_signals": True,
         "risk_management": True,
         "paper_trade": True,
